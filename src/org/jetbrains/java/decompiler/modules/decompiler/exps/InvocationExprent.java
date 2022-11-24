@@ -326,18 +326,23 @@ public class InvocationExprent extends Exprent {
     }
 
     BitSet setAmbiguousParameters = getAmbiguousParameters();
+    
+    boolean isVarArgsInvoke = false;
+
 
     // omit 'new Type[] {}' for the last parameter of a vararg method call
     if (parameters.size() == descriptor.params.length && isVarArgCall()) {
       Exprent lastParam = parameters.get(parameters.size() - 1);
       if (lastParam.type == EXPRENT_NEW && lastParam.getExprType().getArrayDim() >= 1) {
         ((NewExprent) lastParam).setVarArgParam(true);
+        isVarArgsInvoke = true;
       }
     }
 
     boolean firstParameter = true;
     int start = isEnum ? 2 : 0;
-    for (int i = start; i < parameters.size(); i++) {
+    int i = start;
+    for (; i < parameters.size() - 1; i++) {
       if (mask == null || mask.get(i) == null) {
         TextBuffer buff = new TextBuffer();
         boolean ambiguous = setAmbiguousParameters.get(i);
@@ -345,15 +350,42 @@ public class InvocationExprent extends Exprent {
         // 'byte' and 'short' literals need an explicit narrowing type cast when used as a parameter
         ExprProcessor.getCastedExprent(parameters.get(i), descriptor.params[i], buff, indent, true, ambiguous, true, true, tracer);
 
+        // should never be empty (unlike final parameter)
+        if (!firstParameter) {
+          buf.append(", ");
+        }
+        buf.append(buff);
+        firstParameter = false;
+      }
+    }
+
+    if(i < parameters.size()) {
+      if(isVarArgsInvoke) {
+
+        // casting happens inside the varargs (hopefully)
+        Exprent lastParam = parameters.get(parameters.size() - 1);
+        TextBuffer argsBuffer = lastParam.toJava(indent, tracer);
+
         // the last "new Object[0]" in the vararg call is not printed
-        if (buff.length() > 0) {
+        if (argsBuffer.length() > 0) {
           if (!firstParameter) {
             buf.append(", ");
           }
-          buf.append(buff);
+          buf.append(argsBuffer);
         }
+      }
+      else if (mask == null || mask.get(i) == null) {
+        TextBuffer buff = new TextBuffer();
+        boolean ambiguous = setAmbiguousParameters.get(i);
 
-        firstParameter = false;
+        // 'byte' and 'short' literals need an explicit narrowing type cast when used as a parameter
+        ExprProcessor.getCastedExprent(parameters.get(i), descriptor.params[i], buff, indent, true, ambiguous, true, true, tracer);
+
+        // should never be empty as is not varargs
+        if (!firstParameter) {
+          buf.append(", ");
+        }
+        buf.append(buff);
       }
     }
 
