@@ -1,6 +1,7 @@
 // Copyright 2000-2022 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.java.decompiler.struct;
 
+import org.jetbrains.java.decompiler.code.CodeConstants;
 import org.jetbrains.java.decompiler.struct.attr.StructGeneralAttribute;
 import org.jetbrains.java.decompiler.struct.consts.ConstantPool;
 import org.jetbrains.java.decompiler.struct.gen.Type;
@@ -32,7 +33,7 @@ public class StructField extends StructMember {
     return new StructField(accessFlags, attributes, values[0], values[1]);
   }
 
-  private final String name;
+  private String name;
   private final String descriptor;
 
   protected StructField(int accessFlags, Map<String, StructGeneralAttribute> attributes, String name, String descriptor) {
@@ -57,5 +58,18 @@ public class StructField extends StructMember {
   @Override
   protected Type getType() {
     return new VarType(descriptor);
+  }
+
+  public VarType getRawVarTypeDEBUG() {
+    return new VarType(descriptor);
+  }
+
+  public void renameDEBUG(String in_name) {
+    this.name = in_name;
+  }
+
+  public boolean couldBeRecordThing() {
+    int flags = this.getAccessFlags();
+    return ((flags & CodeConstants.ACC_FINAL) > 0) && ((flags & CodeConstants.ACC_STATIC) == 0);
   }
 }

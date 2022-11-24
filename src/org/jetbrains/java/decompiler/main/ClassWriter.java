@@ -170,22 +170,20 @@ public class ClassWriter {
 
       // write class definition
       int start_class_def = buffer.length();
-      writeClassDefinition(node, buffer, indent);
+      List<StructRecordComponent> components = writeClassDefinition(node, buffer, indent);
 
       boolean hasContent = false;
       boolean enumFields = false;
 
       dummy_tracer.incrementCurrentSourceLine(buffer.countLines(start_class_def));
 
-      List<StructRecordComponent> components = cl.getRecordComponents();
-
       for (StructField fd : cl.getFields()) {
         boolean hide = fd.isSynthetic() && DecompilerContext.getOption(IFernflowerPreferences.REMOVE_SYNTHETIC) ||
                        wrapper.getHiddenMembers().contains(InterpreterUtil.makeUniqueKey(fd.getName(), fd.getDescriptor()));
         if (hide) continue;
 
-        if (components != null && fd.getAccessFlags() == (CodeConstants.ACC_FINAL | CodeConstants.ACC_PRIVATE) &&
-            components.stream().anyMatch(c -> c.getName().equals(fd.getName()) && c.getDescriptor().equals(fd.getDescriptor()))) {
+        if (components != null && fd.couldBeRecordThing()
+             && components.stream().anyMatch(c -> c.getName().equals(fd.getName()))) {
           // Record component field: skip it
           continue;
         }
@@ -295,10 +293,10 @@ public class ClassWriter {
     return false;
   }
 
-  private void writeClassDefinition(ClassNode node, TextBuffer buffer, int indent) {
+  private List<StructRecordComponent> writeClassDefinition(ClassNode node, TextBuffer buffer, int indent) {
     if (node.type == ClassNode.CLASS_ANONYMOUS) {
       buffer.append(" {").appendLineSeparator();
-      return;
+      return null;
     }
 
     ClassWrapper wrapper = node.getWrapper();
@@ -377,14 +375,87 @@ public class ClassWriter {
 
     if (components != null) {
       buffer.append('(');
+      {
+        String message = "WARNING agressively matching enabled for record: " + cl.qualifiedName;
+        DecompilerContext.getLogger().writeMessage(message, IFernflowerLogger.Severity.WARN);
+      }
+
+      List<StructField> fields = cl.getFields();
+      if(fields.size() >= components.size()) {
+        
+        boolean all_match = true;
+
+        int f_i = 0;
+        int c_i = 0;
+
+        while(f_i < fields.size() && c_i < components.size()) {
+          StructField fd = fields.get(f_i);
+          f_i++;
+
+          if(!fd.couldBeRecordThing()) {
+            continue;
+          }
+
+          StructRecordComponent cd = components.get(c_i);
+          c_i++;
+
+          boolean varArgComponent = c_i == components.size() - 1 && isVarArgRecord(cl);
+
+          VarType final_type = fd.getRawVarTypeDEBUG();
+          if(varArgComponent) {
+            if(final_type.getArrayDim() == 0) { 
+              all_match = false;
+              break;
+            }
+            else {
+              final_type = final_type.decreaseArrayDim();
+            }
+          }
+
+          all_match |= final_type.equals(cd.getRawVarTypeDEBUG());
+        }
+
+        if(c_i == components.size() && all_match) {
+          DecompilerContext.getLogger().writeMessage("Actually attempting agressive renaming (good luck)", IFernflowerLogger.Severity.WARN);
+
+          f_i = 0;
+          c_i = 0;
+
+          //Can now rename
+          while(f_i < fields.size() && c_i < components.size()) {
+            StructField fd = fields.get(f_i);
+            f_i++;
+
+            if(!fd.couldBeRecordThing()) {
+              continue;
+            }
+
+            StructRecordComponent cd = components.get(c_i);
+
+            String old_name = cd.getName();
+            cd.renameDEBUG(fd.getName());
+            String new_name = components.get(c_i).getName();
+            c_i++;
+
+            String message = "Renaming " + old_name + " to " + new_name;
+            DecompilerContext.getLogger().writeMessage(message, IFernflowerLogger.Severity.WARN);
+
+          }
+        }
+      }
+
       for (int i = 0; i < components.size(); i++) {
         StructRecordComponent cd = components.get(i);
+
+
         if (i > 0) {
           buffer.append(", ");
         }
         boolean varArgComponent = i == components.size() - 1 && isVarArgRecord(cl);
         recordComponentToJava(cd, buffer, varArgComponent);
       }
+      
+
       buffer.append(')');
     }
 
@@ -453,6 +524,8 @@ public class ClassWriter {
       }
     }
     buffer.append('{').appendLineSeparator();
+
+    return components;
   }
 
   private void fieldToJava(ClassWrapper wrapper, StructClass cl, StructField fd, TextBuffer buffer, int indent, BytecodeMappingTracer tracer) {
@@ -1044,7 +1117,7 @@ public class ClassWriter {
     return res.append("/* $FF was: ").append(name).append("*/").toString();
   }
 
-  private static void recordComponentToJava(StructRecordComponent cd, TextBuffer buffer, boolean varArgComponent) {
+  private static void recordComponentToJava(/*StructRecordComponent*/StructField cd, TextBuffer buffer, boolean varArgComponent) {
     Map.Entry<VarType, GenericFieldDescriptor> fieldTypeData = getFieldTypeData(cd);
     VarType fieldType = fieldTypeData.getKey();
     GenericFieldDescriptor descriptor = fieldTypeData.getValue();
