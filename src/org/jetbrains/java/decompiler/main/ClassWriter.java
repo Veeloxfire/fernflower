@@ -175,6 +175,8 @@ public class ClassWriter {
       boolean hasContent = false;
       boolean enumFields = false;
 
+      boolean aggressive_record_field_matching = DecompilerContext.getOption(IFernflowerPreferences.AGGRESSIVE_RECORD_MATCHING);
+
       dummy_tracer.incrementCurrentSourceLine(buffer.countLines(start_class_def));
 
       for (StructField fd : cl.getFields()) {
@@ -182,8 +184,9 @@ public class ClassWriter {
                        wrapper.getHiddenMembers().contains(InterpreterUtil.makeUniqueKey(fd.getName(), fd.getDescriptor()));
         if (hide) continue;
 
-        if (components != null && fd.couldBeRecordThing()
-             && components.stream().anyMatch(c -> c.getName().equals(fd.getName()))) {
+        if (components != null && fd.couldBeRecordField(aggressive_record_field_matching) &&
+            components.stream().anyMatch(c -> c.getName().equals(fd.getName()) &&
+                                              (aggressive_record_field_matching || c.getDescriptor().equals(fd.getDescriptor())))) {
           // Record component field: skip it
           continue;
         }
@@ -376,7 +379,7 @@ public class ClassWriter {
     if (components != null) {
       buffer.append('(');
 
-      if(DecompilerContext.getOption(IFernflowerPreferences.AGGRESSIVE_RECORD_RENAMING)) {
+      if(DecompilerContext.getOption(IFernflowerPreferences.AGGRESSIVE_RECORD_MATCHING)) {
         {
           String message = "Attempting agressively matching for record: " + cl.qualifiedName;
           DecompilerContext.getLogger().writeMessage(message, IFernflowerLogger.Severity.INFO);
@@ -394,7 +397,7 @@ public class ClassWriter {
             StructField fd = fields.get(f_i);
             f_i++;
 
-            if(!fd.couldBeRecordThing()) {
+            if(!fd.couldBeRecordField(true)) {
               continue;
             }
 
@@ -426,7 +429,7 @@ public class ClassWriter {
               StructField fd = fields.get(f_i);
               f_i++;
 
-              if(!fd.couldBeRecordThing()) {
+              if(!fd.couldBeRecordField(true)) {
                 continue;
               }
 

@@ -68,8 +68,14 @@ public class StructField extends StructMember {
     this.name = in_name;
   }
 
-  public boolean couldBeRecordThing() {
+  public boolean couldBeRecordField(boolean aggressive) {
     int flags = this.getAccessFlags();
-    return ((flags & CodeConstants.ACC_FINAL) > 0) && ((flags & CodeConstants.ACC_STATIC) == 0);
+
+    if(aggressive) {
+      return ((flags & CodeConstants.ACC_FINAL) > 0) && ((flags & CodeConstants.ACC_STATIC) == 0);
+    }
+    else {
+      return flags == (CodeConstants.ACC_FINAL | CodeConstants.ACC_PRIVATE);
+    }
   }
 }
