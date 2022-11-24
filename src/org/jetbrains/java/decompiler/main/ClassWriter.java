@@ -375,53 +375,21 @@ public class ClassWriter {
 
     if (components != null) {
       buffer.append('(');
-      {
-        String message = "WARNING agressively matching enabled for record: " + cl.qualifiedName;
-        DecompilerContext.getLogger().writeMessage(message, IFernflowerLogger.Severity.WARN);
-      }
 
-      List<StructField> fields = cl.getFields();
-      if(fields.size() >= components.size()) {
-        
-        boolean all_match = true;
-
-        int f_i = 0;
-        int c_i = 0;
-
-        while(f_i < fields.size() && c_i < components.size()) {
-          StructField fd = fields.get(f_i);
-          f_i++;
-
-          if(!fd.couldBeRecordThing()) {
-            continue;
-          }
-
-          StructRecordComponent cd = components.get(c_i);
-          c_i++;
-
-          boolean varArgComponent = c_i == components.size() - 1 && isVarArgRecord(cl);
-
-          VarType final_type = fd.getRawVarTypeDEBUG();
-          if(varArgComponent) {
-            if(final_type.getArrayDim() == 0) { 
-              all_match = false;
-              break;
-            }
-            else {
-              final_type = final_type.decreaseArrayDim();
-            }
-          }
-
-          all_match |= final_type.equals(cd.getRawVarTypeDEBUG());
+      if(DecompilerContext.getOption(IFernflowerPreferences.AGGRESSIVE_RECORD_RENAMING)) {
+        {
+          String message = "Attempting agressively matching for record: " + cl.qualifiedName;
+          DecompilerContext.getLogger().writeMessage(message, IFernflowerLogger.Severity.INFO);
         }
 
-        if(c_i == components.size() && all_match) {
-          DecompilerContext.getLogger().writeMessage("Actually attempting agressive renaming (good luck)", IFernflowerLogger.Severity.WARN);
+        List<StructField> fields = cl.getFields();
+        if(fields.size() >= components.size()) {
+          
+          boolean all_match = true;
 
-          f_i = 0;
-          c_i = 0;
+          int f_i = 0;
+          int c_i = 0;
 
-          //Can now rename
           while(f_i < fields.size() && c_i < components.size()) {
             StructField fd = fields.get(f_i);
             f_i++;
@@ -431,15 +399,50 @@ public class ClassWriter {
             }
 
             StructRecordComponent cd = components.get(c_i);
-
-            String old_name = cd.getName();
-            cd.renameDEBUG(fd.getName());
-            String new_name = components.get(c_i).getName();
             c_i++;
 
-            String message = "Renaming " + old_name + " to " + new_name;
-            DecompilerContext.getLogger().writeMessage(message, IFernflowerLogger.Severity.WARN);
+            boolean varArgComponent = c_i == components.size() - 1 && isVarArgRecord(cl);
 
+            VarType final_type = fd.getRawVarTypeDEBUG();
+            if(varArgComponent) {
+              if(final_type.getArrayDim() == 0) { 
+                all_match = false;
+                break;
+              }
+              else {
+                final_type = final_type.decreaseArrayDim();
+              }
+            }
+
+            all_match |= final_type.equals(cd.getRawVarTypeDEBUG());
+          }
+
+          if(c_i == components.size() && all_match) {
+            f_i = 0;
+            c_i = 0;
+
+            //Can now rename
+            while(f_i < fields.size() && c_i < components.size()) {
+              StructField fd = fields.get(f_i);
+              f_i++;
+
+              if(!fd.couldBeRecordThing()) {
+                continue;
+              }
+
+              StructRecordComponent cd = components.get(c_i);
+
+              String old_name = cd.getName();
+              cd.renameDEBUG(fd.getName());
+              String new_name = components.get(c_i).getName();
+              c_i++;
+
+              String message = "Renaming " + old_name + " to " + new_name;
+              DecompilerContext.getLogger().writeMessage(message, IFernflowerLogger.Severity.INFO);
+            }
+          }
+          else {
+            DecompilerContext.getLogger().writeMessage("Aggressive Matching Failed! (probably a good thing)", IFernflowerLogger.Severity.WARN);
           }
         }
       }

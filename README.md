@@ -60,6 +60,7 @@ The rest of options can be left as they are: they are aimed at professional reve
 - fdi (1): de-inline finally structures
 - mpm (0): maximum allowed processing time per decompiled method, in seconds. 0 means no upper limit
 - ren (0): rename ambiguous (resp. obfuscated) classes and class elements
+- arr (0): aggressive renaming/matching of record fields
 - urc (-): full name of a user-supplied class implementing IIdentifierRenamer interface. It is used to determine which class identifiers
            should be renamed and provides new identifier names (see "Renaming identifiers")
 - inn (1): check for IntelliJ IDEA-specific @NotNull annotation and remove inserted code if found
