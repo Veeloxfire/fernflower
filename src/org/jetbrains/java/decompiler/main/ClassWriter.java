@@ -154,7 +154,6 @@ public class ClassWriter {
 
   public void classToJava(ClassNode node, TextBuffer buffer, int indent, BytecodeMappingTracer tracer) {
     ClassNode outerNode = (ClassNode)DecompilerContext.getProperty(DecompilerContext.CURRENT_CLASS_NODE);
-    DecompilerContext.setProperty(DecompilerContext.CURRENT_CLASS_NODE, node);
 
     int startLine = tracer != null ? tracer.getCurrentSourceLine() : 0;
     BytecodeMappingTracer dummy_tracer = new BytecodeMappingTracer(startLine);
@@ -171,6 +170,7 @@ public class ClassWriter {
       // write class definition
       int start_class_def = buffer.length();
       List<StructRecordComponent> components = writeClassDefinition(node, buffer, indent);
+      DecompilerContext.setProperty(DecompilerContext.CURRENT_CLASS_NODE, node);
 
       boolean hasContent = false;
       boolean enumFields = false;

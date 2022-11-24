@@ -760,6 +760,11 @@ public class ExprProcessor implements CodeConstants {
     ClassesProcessor.ClassNode enclosingClass = (ClassesProcessor.ClassNode) DecompilerContext.getProperty(
       DecompilerContext.CURRENT_CLASS_NODE
     );
+
+    if(enclosingClass == null) {
+      return new ArrayList<>();
+    }
+
     List<ClassesProcessor.ClassNode> enclosingClassList = new ArrayList<>(List.of(enclosingClass));
     while (enclosingClass.parent != null) {
       enclosingClass = enclosingClass.parent;
